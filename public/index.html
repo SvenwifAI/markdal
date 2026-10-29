@@ -1265,6 +1265,9 @@ function drawDemo(t){
     strokes = [m];
   } else {
     if(!toScreen(_t.set(CAM.x - 1.5, 0, -31), p)) return;
+    // keep the demo clear of the guide at the bottom, whatever the screen shape
+    const hint = document.getElementById('hint'), top = hint.hidden ? innerHeight - 40 : hint.getBoundingClientRect().top;
+    p[0] = innerWidth/2; p[1] = Math.min(p[1], top - 70*k);
     strokes = demoStrokes(p[0], p[1], k);
   }
   const lens = strokes.map(s => s.reduce((a,q,i) => i ? a + Math.hypot(q[0]-s[i-1][0], q[1]-s[i-1][1]) : 0, 0)), total = lens.reduce((a,b) => a+b, 0);
