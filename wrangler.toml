@@ -1,5 +1,5 @@
 # A purely static site: Cloudflare serves ./public as it is. No server code, no database.
-name = "markdal-schapen"
+name = "markdal"
 compatibility_date = "2025-06-01"
 
 [assets]

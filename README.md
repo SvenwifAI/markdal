@@ -30,7 +30,7 @@ npx wrangler login
 npm run deploy
 ```
 
-Je krijgt een adres als `markdal-schapen.<jouw-account>.workers.dev`. Een eigen domein koppel je in het Cloudflare-dashboard onder Workers > markdal-schapen > Domains.
+Je krijgt een adres als `markdal.<jouw-account>.workers.dev`. Een eigen domein koppel je in het Cloudflare-dashboard onder Workers > markdal > Domains.
 
 Alternatief zonder terminal: maak in het dashboard een Workers-project aan vanuit deze GitHub-repo; het leest `wrangler.toml` en publiceert de map `public`.
 
