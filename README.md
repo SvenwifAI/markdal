@@ -1,6 +1,6 @@
 # Schapen in het Markdal
 
-Live: https://markdal.vr-sven.workers.dev
+Live: https://markdalschapen.nl (ook via https://markdal.vr-sven.workers.dev)
 
 Een geschilderd uitzicht over de Mark naar Kasteel Bouvigne in Breda. Je tekent met je vinger een schaap op het gras of een vogel in de lucht, en die gaat grazen of vliegen. Tik een schaap aan en het blaat.
 
