@@ -63,6 +63,7 @@ body{
 .hint small{font:400 16px/1.15 var(--hand)}
 .round{left:auto;right:max(18px,calc(env(safe-area-inset-right,0px) + 18px));top:calc(env(safe-area-inset-top,0px) + 22px);bottom:auto;transform:none;padding:9px}
 .round.armed{color:#9a3b22}
+.round.info{right:max(80px,calc(env(safe-area-inset-right,0px) + 80px))}
 .btn.round:active{transform:scale(.92)}
 .btn{pointer-events:auto;cursor:pointer;border:0;font-size:18px;padding:9px 16px 9px 12px}
 .btn > svg:not(.fleece){width:20px !important;height:20px !important}
@@ -87,6 +88,9 @@ body{
 </header>
 <div id="loading" class="pill">Het Markdal wordt geschilderd</div>
 <div id="toast" class="pill" role="status" aria-live="polite"></div>
+<button id="infoBtn" class="pill btn round info" type="button" aria-label="Laat zien hoe het werkt">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#3b3128" stroke-width="1.8"/><circle cx="12" cy="7.9" r="1.25" fill="#3b3128"/><path d="M12 11v5.6" stroke="#3b3128" stroke-width="2.1" stroke-linecap="round"/></svg>
+</button>
 <button id="resetBtn" class="pill btn round" type="button" aria-label="Maak mijn wei leeg">
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12a6.5 6.5 0 1 0 2-4.7" fill="none" stroke="#3b3128" stroke-width="2" stroke-linecap="round"/><path d="M7.8 3.8v3.9h3.9" fill="none" stroke="#3b3128" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
 </button>
@@ -1055,7 +1059,7 @@ function toGround(px, py){
   const hit = new THREE.Vector3(); return ray.ray.intersectPlane(groundPlane, hit) && hit.z < -1 ? [hit.x, hit.z] : null;
 }
 let ready = false;
-ink.addEventListener('pointerdown', e => { if(!ready) return; ink.setPointerCapture(e.pointerId); stroke = {pts:[[e.clientX,e.clientY]], a:1}; });
+ink.addEventListener('pointerdown', e => { if(!ready) return; stopDemo(); ink.setPointerCapture(e.pointerId); stroke = {pts:[[e.clientX,e.clientY]], a:1}; });
 ink.addEventListener('pointermove', e => { if(!stroke) return; const l = stroke.pts[stroke.pts.length-1]; if(Math.hypot(e.clientX-l[0], e.clientY-l[1]) > 2) stroke.pts.push([e.clientX,e.clientY]); });
 ['pointerup','pointercancel'].forEach(ev => ink.addEventListener(ev, () => { if(stroke){ finish(stroke); fading.push(stroke); stroke = null; } }));
 const toast = document.getElementById('toast'); let toastT;
@@ -1218,10 +1222,51 @@ function drawBubbles(t){
     ig.globalAlpha = 1; ig.textBaseline = 'alphabetic';
   });
 }
+// first visit (or the i-button): a finger draws a little sheep on the meadow, over and over, until you touch the screen
+let demo = null;
+function startDemo(){ demo = {t0: performance.now()/1000}; if(!mineSheep().length){ document.getElementById('hint').hidden = false; document.getElementById('shareBtn').hidden = true; } }
+function stopDemo(){ if(!demo) return; demo = null; store.set('markdal-seen', 1); }
+function demoStrokes(cx, cy, k){
+  const body = [];
+  for(let i=0;i<=64;i++){ const a = Math.PI*.95 + i/64*Math.PI*2, b = 1 + .11*Math.abs(Math.sin(a*5)); body.push([cx + Math.cos(a)*46*k*b, cy + Math.sin(a)*25*k*b]); }
+  const head = []; for(let i=0;i<=18;i++){ const a = i/18*Math.PI*2; head.push([cx + 52*k + Math.cos(a)*11*k, cy - 8*k + Math.sin(a)*9*k]); }
+  const legs = [-26,-10,12,28].map(x => [[cx + x*k, cy + 22*k], [cx + x*k + 2*k, cy + 40*k]]);
+  return [body, head, ...legs];
+}
+function drawDemo(t){
+  if(!demo) return;
+  const p = [0,0]; if(!toScreen(_t.set(CAM.x - 1.5, 0, -31), p)) return;
+  const k = clamp(innerWidth/390, .9, 1.4), strokes = demoStrokes(p[0], p[1], k);
+  const lens = strokes.map(s => s.reduce((a,q,i) => i ? a + Math.hypot(q[0]-s[i-1][0], q[1]-s[i-1][1]) : 0, 0)), total = lens.reduce((a,b) => a+b, 0);
+  const CYC = 4.2, DRAW = 2.6, u = (t - demo.t0) % CYC;
+  let left = Math.min(1, u/DRAW)*total, tip = null;
+  const alpha = u < DRAW + .7 ? 1 : Math.max(0, 1 - (u - DRAW - .7)/.6);
+  ig.lineCap = 'round'; ig.lineJoin = 'round';
+  strokes.forEach((s, si) => {
+    if(left <= 0) return;
+    const path = [s[0]]; let acc = 0;
+    for(let i=1;i<s.length;i++){
+      const d = Math.hypot(s[i][0]-s[i-1][0], s[i][1]-s[i-1][1]);
+      if(acc + d >= left){ const f = (left-acc)/d; path.push([s[i-1][0] + (s[i][0]-s[i-1][0])*f, s[i-1][1] + (s[i][1]-s[i-1][1])*f]); acc = left; break; }
+      acc += d; path.push(s[i]);
+    }
+    left -= lens[si];
+    const line = () => { ig.beginPath(); path.forEach((q,i) => i ? ig.lineTo(q[0],q[1]) : ig.moveTo(q[0],q[1])); };
+    ig.globalAlpha = alpha*.35; ig.strokeStyle = '#2b3a1f'; ig.lineWidth = 8; line(); ig.stroke();
+    ig.globalAlpha = alpha*.95; ig.strokeStyle = '#fffaf0'; ig.lineWidth = 4.5; line(); ig.stroke();
+    tip = path[path.length-1];
+  });
+  if(tip && u < DRAW + .5){
+    ig.globalAlpha = .9; ig.fillStyle = 'rgba(255,255,255,.45)'; ig.strokeStyle = 'rgba(255,255,255,.9)'; ig.lineWidth = 2;
+    ig.beginPath(); ig.arc(tip[0] + 4, tip[1] + 6, 16, 0, 6.283); ig.fill(); ig.stroke();
+  }
+  ig.globalAlpha = 1;
+}
 function drawInk(dt){
   ig.setTransform(IDPR,0,0,IDPR,0,0); ig.clearRect(0,0,innerWidth,innerHeight);
   drawBirds(dt, performance.now()/1000);
   drawBubbles(performance.now()/1000);
+  drawDemo(performance.now()/1000);
   ig.lineCap = 'round'; ig.lineJoin = 'round';
   const draw = s => {
     if(s.pts.length < 2) return;
@@ -1233,6 +1278,8 @@ function drawInk(dt){
   if(stroke) draw(stroke);
   ig.globalAlpha = 1;
 }
+
+document.getElementById('infoBtn').addEventListener('click', () => { startDemo(); say('Teken met je vinger, zoals hier'); });
 
 /* ---------- reset: empty your meadow again (two taps, so it never happens by accident) ---------- */
 const resetBtn = document.getElementById('resetBtn'); let armed = 0;
@@ -1341,6 +1388,7 @@ requestAnimationFrame(() => setTimeout(() => {
   addEventListener('resize', () => { clearTimeout(fit.t); fit.t = setTimeout(fit, 120); });
   document.getElementById('loading').hidden = true;
   restore();
+  if(!store.get('markdal-seen') && !mineSheep().length) startDemo();
   ready = true;
   renderer.setAnimationLoop(frame);
 }, 30));
